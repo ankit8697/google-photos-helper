@@ -17,6 +17,7 @@ def batch_create_images(service, album_path):
         The way the API works is that it first uploads the images to Google Photos, then you can
         use their IDs to add them to Google Photos albums
     '''
+
     # Stuff we need to make our post request
     upload_url = 'https://photoslibrary.googleapis.com/v1/uploads'
     token = pickle.load(open('token_photoslibrary_v1.pickle', 'rb'))
@@ -43,9 +44,10 @@ def batch_create_images(service, album_path):
             img = open(image_path, 'rb').read()
             # Upload image to Google's servers
             response = requests.post(upload_url, data=img, headers=headers)
+            token = response.content.decode('utf-8')
             new_media_item = {
                     'simpleMediaItem': {
-                        'uploadToken': response.content.decode('utf-8')
+                        'uploadToken': token
                     }
                 }
             new_media_items.append(new_media_item)
@@ -54,15 +56,26 @@ def batch_create_images(service, album_path):
         'newMediaItems': new_media_items
     }
 
-    upload_response = service.mediaItems().batchCreate(body=request_body).execute()
-    return upload_response
+    response = service.mediaItems().batchCreate(body=request_body).execute()
+    return response
 
 def add_photos_to_album(service, album_path, album_id):
     ''' Adds all photos in the album path to the album of the given album ID.'''
+
+    upload_url = f'https://photoslibrary.googleapis.com/v1/albums/{album_id}:batchAddMediaItems'
+    token = pickle.load(open('token_photoslibrary_v1.pickle', 'rb'))
+    headers = {
+        'Content-type': 'application/json',
+        'Authorization': 'Bearer ' + token.token
+    }
     upload_response = batch_create_images(service, album_path)
-
-
-    
+    new_media_item_results = upload_response['newMediaItemResults']
+    media_item_ids = [new_media_item_result['mediaItem']['id'] for new_media_item_result in new_media_item_results]
+    request_body = {
+        'mediaItemIds': media_item_ids
+    }
+    response = requests.post(upload_url, data=request_body, headers=headers)
+    return response
 
 
 def check_album_exists(service, album_name):

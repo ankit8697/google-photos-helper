@@ -2,21 +2,25 @@ import pickle
 import requests
 import os
 
+from googleapiclient.errors import HttpError
+
+
 def create_new_album(service, album_name):
-    ''' Creates a new album of the given album name and returns the album ID '''
+    """ Creates a new album of the given album name and returns the album ID """
     request_body = {
         'album': {
             'title': album_name
         }
     }
     response = service.albums().create(body=request_body).execute()
-    return response
+    return response['id']
 
-def batch_create_images(service, album_path):
-    ''' Takes the album path and uploads all images to Google's servers, then returns the response.
-        The way the API works is that it first uploads the images to Google Photos, then you can
-        use their IDs to add them to Google Photos albums
-    '''
+
+def batch_create_images(service, album_path, album_id):
+    """ Takes the album path and uploads all images to Google's servers, adds them to the album_id, then returns the
+        response, or None if there
+        were no images.
+    """
 
     # Stuff we need to make our post request
     upload_url = 'https://photoslibrary.googleapis.com/v1/uploads'
@@ -26,7 +30,8 @@ def batch_create_images(service, album_path):
         'Content-type': 'application/octet-stream',
         'X-Goog-Upload-Protocol': 'raw'
     }
-    accepted_filetypes = ['BMP', 'GIF', 'HEIC', 'ICO', 'JPG', 'PNG', 'TIFF', 'WEBP', '3GP', '3G2', 'ASF', 'AVI', 'DIVX', 'M2T', 'M2TS', 'M4V', 'MKV', 'MMV', 'MOD', 'MOV', 'MP4', 'MPG', 'MTS', 'TOD', 'WMV']
+    accepted_filetypes = ['BMP', 'GIF', 'HEIC', 'ICO', 'JPG', 'PNG', 'TIFF', 'WEBP', '3GP', '3G2', 'ASF', 'AVI', 'DIVX',
+                          'M2T', 'M2TS', 'M4V', 'MKV', 'MMV', 'MOD', 'MOV', 'MP4', 'MPG', 'MTS', 'TOD', 'WMV']
     # Modifying the filetypes to be in the correct formula (because I'm lazy. Change them from the source if needed)
     accepted_filetypes = ['.' + filetype.lower() for filetype in accepted_filetypes]
 
@@ -37,8 +42,9 @@ def batch_create_images(service, album_path):
         proper_filetype = False
         for filetype in accepted_filetypes:
             proper_filetype = proper_filetype or entry.path.endswith(filetype)
-        
-        if (proper_filetype and entry.is_file()):
+
+        if proper_filetype and entry.is_file():
+            print("Found media", entry.path)
             image_path = entry.path
             headers['X-Goog-Upload-File-Name'] = entry.name
             img = open(image_path, 'rb').read()
@@ -46,36 +52,45 @@ def batch_create_images(service, album_path):
             response = requests.post(upload_url, data=img, headers=headers)
             token = response.content.decode('utf-8')
             new_media_item = {
-                    'simpleMediaItem': {
-                        'uploadToken': token
-                    }
+                'simpleMediaItem': {
+                    'uploadToken': token
                 }
+            }
             new_media_items.append(new_media_item)
 
-    request_body  = {
+    if len(new_media_items) == 0:
+        # don't do anything if there were no images
+        return None
+
+    request_body = {
+        'albumId': f"{album_id}",
         'newMediaItems': new_media_items
     }
+    try:
+        return service.mediaItems().batchCreate(body=request_body).execute()
+    except HttpError as err:
+        print("Unable to upload items to album", album_path, ":", err)
+        if "permission to add media items" in str(err.content):
+            print("It looks like Photos Helper wasn't able to upload to this album. Tools like this are only able to "
+                  "modify albums that were created automatically. If you already have an album with the same name as a "
+                  "directory, that is probably the cause.")
+    return None
 
-    response = service.mediaItems().batchCreate(body=request_body).execute()
-    return response
 
-def add_photos_to_album(service, album_path, album_id):
+def recursively_add_photos_to_album(service, album_path, album_id):
     ''' Adds all photos in the album path to the album of the given album ID.'''
+    print("New album:", album_path)
+    upload_response = batch_create_images(service, album_path, album_id)
+    # TODO handle errors in upload?
 
-    upload_url = f'https://photoslibrary.googleapis.com/v1/albums/{album_id}:batchAddMediaItems'
-    token = pickle.load(open('token_photoslibrary_v1.pickle', 'rb'))
-    headers = {
-        'Content-type': 'application/json',
-        'Authorization': 'Bearer ' + token.token
-    }
-    upload_response = batch_create_images(service, album_path)
-    new_media_item_results = upload_response['newMediaItemResults']
-    media_item_ids = [new_media_item_result['mediaItem']['id'] for new_media_item_result in new_media_item_results]
-    request_body = {
-        'mediaItemIds': media_item_ids
-    }
-    response = requests.post(upload_url, data=request_body, headers=headers)
-    return response
+    for entry in os.scandir(album_path):
+        if entry.is_dir():
+            existing_album = check_album_exists(service, entry.name)
+            actual_album = create_new_album(service, entry.name) if existing_album is None else existing_album
+            if actual_album is None:
+                print("Unable to create album", entry.name)
+                return
+            recursively_add_photos_to_album(service, entry.path, actual_album)
 
 
 def check_album_exists(service, album_name):

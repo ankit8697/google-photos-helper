@@ -1,5 +1,5 @@
 import os
-from Google import create_service
+from google import create_service
  
 API_NAME = 'photoslibrary'
 API_VERSION = 'v1'

@@ -1,3 +1,5 @@
 env/
 .vscode/
 credentials.json
+__pycache__
+*.pickle

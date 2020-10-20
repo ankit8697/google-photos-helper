@@ -16,6 +16,7 @@ To get the program up and running on your local machine, follow the steps below:
 
 - Clone the repository to a folder on your local machine.
 - Create a new Python virtual environment and install the packages listed in requirements.txt
+- Go to the Google Photos API and create the required credentials to get your API key. Select the "Other" option when asked what kind of application the credentials are for. Save it in the root directory as credentials.json.
 - Run ```python3 main.py PATH/TO/IMAGES/DIRECTORY```
 
 ## Usage <a name = "usage"></a>

@@ -88,7 +88,7 @@ def recursively_add_photos_to_album(service, album_path, album_id):
             existing_album = check_album_exists(service, entry.name)
             actual_album = create_new_album(service, entry.name) if existing_album is None else existing_album
             if actual_album is None:
-                print("Unable to create album", entry.name)
+                print("Unable to create album: ", entry.name)
                 return
             recursively_add_photos_to_album(service, entry.path, actual_album)
 

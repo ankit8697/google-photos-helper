@@ -59,7 +59,11 @@ def batch_create_images(service, album_path, album_id):
             print("Found media", entry.path)
             image_path = entry.path
             headers['X-Goog-Upload-File-Name'] = entry.name
-            img = open(image_path, 'rb').read()
+            try:
+                img = open(image_path, 'rb').read()
+            except FileNotFoundError as err:
+                print(image_path, " Not found")
+                continue
             # Upload image to Google's servers
             response = requests.post(upload_url, data=img, headers=headers)
             token = response.content.decode('utf-8')

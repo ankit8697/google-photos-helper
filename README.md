@@ -21,7 +21,7 @@ To get the program up and running on your local machine, follow the steps below:
 
 ## Usage <a name = "usage"></a>
 
-To use the program, call the main file with the command line arguments for path. The program will prompt you to sign-in with your Gmail account. The program is currently not verified by Google so your browser will tell you it isn't verified, but you can continue to the authentication page. Once you accept all permissions and choose the account you want the photos to go into, the program will begin uploading images to the relevant Google Photos account. 
+To use the program, you must have python3 installed. Call the main.py file with the command line argument being the path to the folder containing the images or folders of imagesx. The program will prompt you to sign-in with your Gmail account. The program is currently not verified by Google so your browser will tell you it isn't verified, but you can continue to the authentication page. Once you accept all permissions and choose the account you want the photos to go into, the program will begin uploading images to the relevant Google Photos account. 
 
 ## Contributing
 

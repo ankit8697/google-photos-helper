@@ -3,6 +3,7 @@ import requests
 import os
 
 from googleapiclient.errors import HttpError
+from init_photo_service import connect_to_api
 
 
 def create_new_album(service, album_name):
@@ -14,6 +15,17 @@ def create_new_album(service, album_name):
     }
     response = service.albums().create(body=request_body).execute()
     return response['id']
+
+
+def upload_batch_of_images(service, album_id, new_media_items):
+    n = 50
+    batched_media_items = [new_media_items[i:i + n] for i in range(0, len(new_media_items), n)]
+    for batch in batched_media_items:
+        request_body = {
+            'albumId': f"{album_id}",
+            'newMediaItems': batch
+        }
+        service.mediaItems().batchCreate(body=request_body).execute()
 
 
 def batch_create_images(service, album_path, album_id):
@@ -62,26 +74,25 @@ def batch_create_images(service, album_path, album_id):
         # don't do anything if there were no images
         return None
 
-    request_body = {
-        'albumId': f"{album_id}",
-        'newMediaItems': new_media_items
-    }
     try:
-        return service.mediaItems().batchCreate(body=request_body).execute()
+        upload_batch_of_images(service, album_id, new_media_items)
     except HttpError as err:
         print("Unable to upload items to album", album_path, ":", err)
         if "permission to add media items" in str(err.content):
             print("It looks like Photos Helper wasn't able to upload to this album. Tools like this are only able to "
                   "modify albums that were created automatically. If you already have an album with the same name as a "
                   "directory, that is probably the cause.")
+    
+    except BrokenPipeError as err:
+        service = connect_to_api()
+        upload_batch_of_images(service, album_id, new_media_items)
     return None
 
 
 def recursively_add_photos_to_album(service, album_path, album_id):
     ''' Adds all photos in the album path to the album of the given album ID.'''
     print("New album:", album_path)
-    upload_response = batch_create_images(service, album_path, album_id)
-    # TODO handle errors in upload?
+    batch_create_images(service, album_path, album_id)
 
     for entry in os.scandir(album_path):
         if entry.is_dir():

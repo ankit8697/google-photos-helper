@@ -23,8 +23,6 @@ To get the program up and running on your local machine, follow the steps below:
 
 To use the program, call the main file with the command line arguments for path. The program will prompt you to sign-in with your Gmail account. The program is currently not verified by Google so your browser will tell you it isn't verified, but you can continue to the authentication page. Once you accept all permissions and choose the account you want the photos to go into, the program will begin uploading images to the relevant Google Photos account. 
 
-Alternatively, simply run the executable with the first argument being the path to the images directory.
-
 ## Contributing
 
 This project is in development to add potentially a website or a GUI Desktop application, so any contributions to add those features would be helpful.
